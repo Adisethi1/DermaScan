@@ -1,9 +1,8 @@
 import streamlit as st
 import requests
 from PIL import Image
-import io
 
-# Page Configuration for a clean, medical-dashboard look
+# Page Configuration
 st.set_page_config(
     page_title="HAM10000 Skin Lesion Analyzer", 
     page_icon="🔬",
@@ -13,9 +12,9 @@ st.set_page_config(
 st.title("🔬 Skin Lesion Classification Dashboard")
 st.write("Upload a dermoscopic image from the HAM10000 dataset to analyze it using the trained CNN model.")
 
-# Target URL pointing to your backend Flask API running on port 5001
-BACKEND_URL = "https://dermascan-ospu.onrender.com"
-response = requests.post(BACKEND_URL, files={"file": uploaded_file.getvalue()})
+# Live Backend API Endpoint on Render
+BACKEND_URL = "https://dermascan-ospu.onrender.com/predict"
+
 # File Uploader Widget
 uploaded_file = st.file_uploader(
     "Choose a skin lesion image file...", 
@@ -23,39 +22,39 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file is not None:
-    # Open and display the uploaded image to the user
+    # Open and display the uploaded image
     image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image Scan Profile", use_container_width=True)
+    st.image(image, caption="Uploaded Image Scan Profile", use_column_width=True)
     
     # Analysis Trigger Button
-    if st.button("Analyze Image"):
+    if st.button("Analyze Image", type="primary"):
         with st.spinner("Processing image through CNN classification pipeline..."):
             
-            # Reset file pointer to the beginning of the file buffer
+            # Reset file pointer to the beginning of the buffer
             uploaded_file.seek(0)
             
-            # Format the file correctly for the requests multi-part form payload
+            # Format payload for Flask multi-part upload
             files = {
                 "file": (uploaded_file.name, uploaded_file.read(), uploaded_file.type)
             }
             
             try:
-                # Send the POST request to the Flask backend API
-                response = requests.post(API_URL, files=files)
+                # Send POST request to live Render API
+                response = requests.post(BACKEND_URL, files=files)
                 
                 if response.status_code == 200:
                     result = response.json()
                     
                     st.success("Analysis Complete!")
                     
-                    # Display metrics for the classification and confidence scores
+                    # Display metrics for classification and confidence scores
                     st.metric(
                         label="Detected Structural Classification", 
-                        value=result['prediction']
+                        value=result.get('prediction', 'Unknown')
                     )
                     st.metric(
                         label="Model Algorithmic Certainty (Confidence)", 
-                        value=result['confidence']
+                        value=result.get('confidence', 'N/A')
                     )
                     
                 else:
@@ -65,4 +64,4 @@ if uploaded_file is not None:
                         
             except requests.exceptions.ConnectionError:
                 st.error("Could not reach backend API server.")
-                st.info("💡 Make sure your backend notebook cell or `app.py` script is actively running on http://127.0.0.1:5001 before clicking analyze.")
+                st.info("💡 Ensure your Render backend service is live and active.")
