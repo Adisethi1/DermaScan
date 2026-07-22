@@ -14,8 +14,8 @@ st.title("🔬 Skin Lesion Classification Dashboard")
 st.write("Upload a dermoscopic image from the HAM10000 dataset to analyze it using the trained CNN model.")
 
 # Target URL pointing to your backend Flask API running on port 5001
-API_URL = "http://127.0.0.1:5001/predict"
-
+BACKEND_URL = "https://dermascan-ospu.onrender.com"
+response = requests.post(BACKEND_URL, files={"file": uploaded_file.getvalue()})
 # File Uploader Widget
 uploaded_file = st.file_uploader(
     "Choose a skin lesion image file...", 
