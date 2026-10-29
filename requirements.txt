@@ -1,7 +1,0 @@
-torch
-torchvision
-pillow
-flask
-requests
-streamlit
-numpy
