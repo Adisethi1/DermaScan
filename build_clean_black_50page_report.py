@@ -11,6 +11,9 @@ import os
 import re
 import docx
 from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 import reportlab
 from reportlab.lib.pagesizes import A4
@@ -1134,6 +1137,45 @@ for s in doc.sections:
     s.left_margin = Inches(1.25)
     s.right_margin = Inches(1.0)
 
+    # Remove all headers completely
+    s.header.is_linked_to_previous = False
+    for hp in s.header.paragraphs:
+        hp.text = ""
+
+    # Cover page has no footer page number
+    s.different_first_page_header_footer = True
+    if s.first_page_header:
+        for hp in s.first_page_header.paragraphs:
+            hp.text = ""
+    if s.first_page_footer:
+        for fp in s.first_page_footer.paragraphs:
+            fp.text = ""
+
+    # Footer: ONLY page number centered at bottom
+    footer = s.footer
+    p = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.text = ""
+    run = p.add_run()
+    run.font.name = 'Times New Roman'
+    run.font.size = Pt(10)
+    run.font.color.rgb = RGBColor(0, 0, 0)
+
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+    instrText = OxmlElement('w:instrText')
+    instrText.set(qn('xml:space'), 'preserve')
+    instrText.text = "PAGE"
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'separate')
+    fldChar3 = OxmlElement('w:fldChar')
+    fldChar3.set(qn('w:fldCharType'), 'end')
+
+    run._r.append(fldChar1)
+    run._r.append(instrText)
+    run._r.append(fldChar2)
+    run._r.append(fldChar3)
+
 # Configure all core styles to Times New Roman and pure black
 for s_name in ['Normal', 'Heading 1', 'Heading 2', 'Heading 3', 'List Bullet', 'List Number']:
     if s_name in doc.styles:
@@ -1266,31 +1308,17 @@ class CleanBlackCanvas(canvas.Canvas):
 
     def draw_decorations(self, total_pages):
         page_w, page_h = self._pagesize
+        # Title / Cover page (Page 1): no header, no footer
         if self._pageNumber == 1:
-            # Simple clean black border on cover page
-            self.saveState()
-            self.setStrokeColor(colors.black)
-            self.setLineWidth(1.0)
-            self.rect(36, 36, page_w - 72, page_h - 72)
-            self.restoreState()
             return
 
         self.saveState()
-        self.setFont("Times-Roman", 9)
+        self.setFont("Times-Roman", 10)
         self.setFillColor(colors.black)
 
-        # Header: clean simple black text and line
-        self.drawString(54, page_h - 36, "DERMASCAN: CLINICAL SKIN LESION SCREENING SYSTEM")
-        self.drawRightString(page_w - 54, page_h - 36, "MAJOR PROJECT DISSERTATION")
-        self.setStrokeColor(colors.black)
-        self.setLineWidth(0.6)
-        self.line(54, page_h - 42, page_w - 54, page_h - 42)
-
-        # Footer: clean simple black line and page number
-        self.line(54, 46, page_w - 54, 46)
-        self.drawString(54, 32, "Department of Computer Science & Engineering | Academic Year 2025-2026")
-        page_str = f"Page {self._pageNumber} of {total_pages}"
-        self.drawRightString(page_w - 54, 32, page_str)
+        # No headers at all
+        # Footer: ONLY page number centered at bottom
+        self.drawCentredString(page_w / 2.0, 36, str(self._pageNumber))
         self.restoreState()
 
 doc_pdf = SimpleDocTemplate(
